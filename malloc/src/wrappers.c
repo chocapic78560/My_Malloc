@@ -11,8 +11,7 @@
 
 static struct page *pages = NULL;
 
-static struct blk_meta *
-meta_of(void *ptr) // retire les metadata pour être au debut du bloc
+static struct blk_meta *meta_of(void *ptr) // retire les metadata pour être au debut du bloc
 {
     char *c = ptr;
     c -= sizeof(struct blk_meta);
@@ -20,8 +19,7 @@ meta_of(void *ptr) // retire les metadata pour être au debut du bloc
     return v;
 }
 
-static struct page *
-page_of(struct blk_meta *b) // retire l entete vrmt tout au debut de la page
+static struct page *page_of(struct blk_meta *b) // retire l entete vrmt tout au debut de la page
 {
     while (b->prev)
         b = b->prev;
@@ -32,8 +30,7 @@ page_of(struct blk_meta *b) // retire l entete vrmt tout au debut de la page
     return v;
 }
 
-// sert a ajouter une nouvelle page de taille size pour le malloc ou cas ou le
-// block n existe pas
+// sert a ajouter une nouvelle page de taille size pour le malloc ou cas ou le block n existe pas
 static struct page *page_new(size_t size)
 {
     size_t total;
@@ -44,10 +41,8 @@ static struct page *page_new(size_t size)
     if (test == -1)
         return NULL;
     size_t page_size = test;
-    total = (total + page_size - 1) / page_size
-        * page_size; // calcul de la taille qu il faut mapper
-    void *addr = mmap(NULL, total, PROT_READ | PROT_WRITE,
-                      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    total = (total + page_size - 1) / page_size * page_size; // calcul de la taille qu il faut mapper
+    void *addr = mmap(NULL, total, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (addr == MAP_FAILED)
         return NULL;
     char *casted = addr; // implicite
@@ -57,9 +52,7 @@ static struct page *page_new(size_t size)
     new->free = 1;
     new->next = NULL;
     new->prev = NULL;
-    new->size = total - sizeof(struct page)
-        - sizeof(struct blk_meta); // taille totale des block sans en-tete et
-                                   // metadata
+    new->size = total - sizeof(struct page) - sizeof(struct blk_meta); // taille totale des block sans en-tete et metadata
     page->size = total; // taille de la page mappee
     page->pad = 0;
     page->first = new;
@@ -67,8 +60,7 @@ static struct page *page_new(size_t size)
     pages = page;
     return page;
 }
-// test si le bloc est dans une des  page pour savoir si il a été alloué par
-// nous
+// test si le bloc est dans une des  page pour savoir si il a été alloué par nous
 static struct page *block_in(struct blk_meta *b)
 {
     void *tmp = b;
@@ -84,8 +76,7 @@ static struct page *block_in(struct blk_meta *b)
     return NULL;
 }
 
-static struct blk_meta *
-find_fit(size_t size) // trouve le premier bloc avec une taille >=size
+static struct blk_meta *find_fit(size_t size) // trouve le premier bloc avec une taille >=size
 {
     for (struct page *p = pages; p; p = p->next)
     {
@@ -98,8 +89,7 @@ find_fit(size_t size) // trouve le premier bloc avec une taille >=size
     return NULL;
 }
 
-static void
-page_free(struct page *p) // libere une page et l enleve de la liste chainee
+static void page_free(struct page *p) // libere une page et l enleve de la liste chainee
 {
     struct page **list = &pages;
     while (*list && *list != p)
@@ -108,13 +98,11 @@ page_free(struct page *p) // libere une page et l enleve de la liste chainee
     munmap(p, p->size);
 }
 
-// garde uniquement les octets necessaires et donne le reste a son next et link
-// le next
+// garde uniquement les octets necessaires et donne le reste a son next et link le next
 static void block_split(struct blk_meta *b, size_t size)
 {
     size_t reste = b->size - size;
-    size_t meta_entete = sizeof(struct blk_meta)
-        + sizeof(long double); // sans les metadata et les 16 minimum
+    size_t meta_entete = sizeof(struct blk_meta)+ sizeof(long double); // sans les metadata et les 16 minimum
     if (reste < meta_entete)
         return;
     void *tmp = b;
@@ -142,11 +130,9 @@ static void block_merge(struct blk_meta *b) // fusionne b avec son prochain
         n->next->prev = b;
 }
 
-static int block_can_extend(struct blk_meta *b,
-                            size_t size) // si le bloc + son prochain >= size
+static int block_can_extend(struct blk_meta *b,size_t size) // si le bloc + son prochain >= size
 {
-    return b->next && b->next->free
-        && (b->size + b->next->size + sizeof(struct blk_meta)) >= size;
+    return b->next && b->next->free && (b->size + b->next->size + sizeof(struct blk_meta)) >= size;
 }
 
 void *my_malloc(size_t size)
@@ -157,8 +143,7 @@ void *my_malloc(size_t size)
     struct blk_meta *block = find_fit(allignee);
     if (block)
     {
-        block_split(block, allignee); // mecanique de split pour optimiser et
-                                      // prendre que les octets necessaires
+        block_split(block, allignee); // mecanique de split pour optimiser et prendre que les octets necessaires
         block->free = 0;
         return block->data;
     }
@@ -176,9 +161,7 @@ void my_free(void *ptr)
 {
     if (!ptr)
         return;
-    struct blk_meta *beginning =
-        meta_of(ptr); // recule des metadonnees pour arriver au tout debut de la
-                      // structure
+    struct blk_meta *beginning =meta_of(ptr); // recule des metadonnees pour arriver au tout debut de la structure
     if (!block_in(beginning))
         return;
     beginning->free = 1;
@@ -227,8 +210,7 @@ void *my_realloc(void *ptr, size_t size)
         block_split(p, size);
         return ptr;
     }
-    if (block_can_extend(
-            p, size)) // au cas ou y a pas assez de taille pour eviter de malloc
+    if (block_can_extend(p, size)) // au cas ou y a pas assez de taille pour eviter de malloc
     {
         block_merge(p); // on merge avec le prochain
         block_split(p, size); // puis split pour l opti prcq on est des bg
